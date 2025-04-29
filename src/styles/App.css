@@ -1,0 +1,13 @@
+.content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+.document-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    /* list-style-type: none; */
+    padding: 0;
+}
