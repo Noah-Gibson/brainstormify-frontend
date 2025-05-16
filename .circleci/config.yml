@@ -21,7 +21,7 @@ jobs:
           command: |
             export OCI_CLI_INSTALL_DIR="$HOME/lib/oracle-cli"
             export PATH="$OCI_CLI_INSTALL_DIR/bin:$PATH"
-            bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh) -- --accept-all-defaults"
+            bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -- --accept-all-defaults
             echo 'export PATH=$PATH:$HOME/bin' >> $BASH_ENV
             source $BASH_ENV
       - run:
