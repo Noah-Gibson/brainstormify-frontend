@@ -1,0 +1,43 @@
+version: 2.1
+
+executors:
+  node_executor:
+    docker:
+      - image: cimg/node:18.17
+
+jobs:
+  build-and-deploy:
+    executor: node_executor
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: npm ci
+      - run:
+          name: Build React app
+          command: npm run build
+      - run:
+          name: Install OCI CLI
+          command: |
+            bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
+            echo 'export PATH=$PATH:$HOME/bin' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: Set up OCI config and upload to bucket
+          command: |
+            mkdir -p ~/.oci
+
+            echo "[DEFAULT]" > ~/.oci/config
+            echo "user=$OCI_USER_OCID" >> ~/.oci/config
+            echo "fingerprint=$OCI_FINGERPRINT" >> ~/.oci/config
+            echo "tenancy=$OCI_TENANCY_OCID" >> ~/.oci/config
+            echo "region=$OCI_REGION" >> ~/.oci/config
+            echo "key_file=~/.oci/oci_api_key.pem" >> ~/.oci/config
+
+            echo "$OCI_API_PRIVATE_KEY" | base64 -d > ~/.oci/oci_api_key.pem
+            chmod 600 ~/.oci/oci_api_key.pem
+
+            oci os object bulk-upload \
+              --bucket-name "$OCI_BUCKET_NAME" \
+              --src-path dist \
+              --overwrite 
