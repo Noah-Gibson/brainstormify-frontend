@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // scripts/oci-upload.js
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const mime = require('mime'); // you'll install this in CI
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import mime from 'mime';
 
 const bucket = process.env.OCI_BUCKET_NAME;
 if (!bucket) {
