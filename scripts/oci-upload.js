@@ -28,7 +28,6 @@ function walk(dir) {
           `--name ${rel}`,
           `--file ${full}`,
           `--content-type "${type}"`,
-          '--overwrite'
         ].join(' '),
         { stdio: 'inherit' }
       );
