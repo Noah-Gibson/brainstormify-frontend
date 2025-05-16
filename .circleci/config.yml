@@ -42,4 +42,9 @@ jobs:
             oci os object bulk-upload \
               --bucket-name "$OCI_BUCKET_NAME" \
               --src-path dist \
-              --overwrite 
+              --overwrite
+
+workflows:
+  build_and_deploy_workflow:
+    jobs:
+      - build-and-deploy
