@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import mime from 'mime';
 
+const namespace = process.env.OCI_NAMESPACE;
 const bucket = process.env.OCI_BUCKET_NAME;
 if (!bucket) {
   console.error('ERROR: OCI_BUCKET_NAME not set');
@@ -24,6 +25,7 @@ function walk(dir) {
       execSync(
         [
           'oci os object put',
+          `--namespace ${namespace}`,
           `--bucket-name ${bucket}`,
           `--name ${rel}`,
           `--file ${full}`,
