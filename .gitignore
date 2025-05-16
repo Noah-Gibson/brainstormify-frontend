@@ -5,8 +5,6 @@
 /yarn-error.log
 
 # Vite
-/vite.config.ts
-/vite.config.js
 /dist/
 .cache/
 
