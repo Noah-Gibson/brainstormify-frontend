@@ -37,7 +37,7 @@ jobs:
             echo "key_file=~/.oci/oci_api_key.pem" >> ~/.oci/config
 
             echo "$OCI_API_PRIVATE_KEY" | base64 -d > ~/.oci/oci_api_key.pem
-            chmod 600 ~/.oci/oci_api_key.pem
+            chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
             oci setup repair-file-permissions --file ~/.oci/config
 
             node scripts/oci-upload.js
