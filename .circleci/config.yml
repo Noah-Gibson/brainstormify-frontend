@@ -25,19 +25,33 @@ jobs:
             echo 'export PATH=$PATH:$HOME/bin' >> $BASH_ENV
             source $BASH_ENV
       - run:
-          name: Set up OCI config and upload to bucket
+          name: Set up OCI config and secure it
           command: |
             mkdir -p ~/.oci
 
-            echo "[DEFAULT]" > ~/.oci/config
-            echo "user=$OCI_USER_OCID" >> ~/.oci/config
-            echo "fingerprint=$OCI_FINGERPRINT" >> ~/.oci/config
-            echo "tenancy=$OCI_TENANCY_OCID" >> ~/.oci/config
-            echo "region=$OCI_REGION" >> ~/.oci/config
-            echo "key_file=~/.oci/oci_api_key.pem" >> ~/.oci/config
+            # write a minimal config
+            cat > ~/.oci/config <<-EOF
+            [DEFAULT]
+            user=$OCI_USER_OCID
+            fingerprint=$OCI_FINGERPRINT
+            tenancy=$OCI_TENANCY_OCID
+            region=$OCI_REGION
+            key_file=/home/circleci/.oci/oci_api_key.pem
+            EOF
 
+            # decode and write the private key
             echo "$OCI_API_PRIVATE_KEY" | base64 -d > ~/.oci/oci_api_key.pem
+
+            # extract & append the public key label
+            openssl rsa -in ~/.oci/oci_api_key.pem -pubout \
+              | sed '1d;$d' \
+              | tr -d '\n' \
+              | awk '{ print "OCI_API_KEY=\"" $0 "\"" }' \
+              >> ~/.oci/config
+
+            # lock down permissions
             chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
+
             oci setup repair-file-permissions --file ~/.oci/config
 
             node scripts/oci-upload.js
