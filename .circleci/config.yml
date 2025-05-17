@@ -30,14 +30,14 @@ jobs:
             mkdir -p ~/.oci
 
             # write a minimal config
-            cat > ~/.oci/config <<-EOF
-            [DEFAULT]
-            user=$OCI_USER_OCID
-            fingerprint=$OCI_FINGERPRINT
-            tenancy=$OCI_TENANCY_OCID
-            region=$OCI_REGION
-            key_file=/home/circleci/.oci/oci_api_key.pem
-            EOF
+            printf "%s\n" \
+              "[DEFAULT]" \
+              "user=$OCI_USER_OCID" \
+              "fingerprint=$OCI_FINGERPRINT" \
+              "tenancy=$OCI_TENANCY_OCID" \
+              "region=$OCI_REGION" \
+              "key_file=/home/circleci/.oci/oci_api_key.pem" \
+            > ~/.oci/config
 
             # decode and write the private key
             echo "$OCI_API_PRIVATE_KEY" | base64 -d > ~/.oci/oci_api_key.pem
