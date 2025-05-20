@@ -20,20 +20,20 @@ jobs:
           command: npm run build
 
       - run:
-          name: Install non-interactive OCI CLI
+          name: Install OCI CLI (latest & bug-fixed)
           command: |
-            export OCI_CLI_INSTALL_DIR="$HOME/lib/oracle-cli"
-            export PATH="$OCI_CLI_INSTALL_DIR/bin:$PATH"
-            bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -- --accept-all-defaults
-            echo 'export PATH=$PATH:$HOME/bin' >> $BASH_ENV
-            source $BASH_ENV
+            # Install the OCI CLI via pip to pull in v3.51.7+ (contains the OCI_API_KEY parsing fix)
+            python3 -m pip install --user --upgrade oci-cli==3.51.7
+            export PATH="$HOME/.local/bin:$PATH"
+            # Verify version is ≥ 3.51.7
+            oci --version
 
       - run:
           name: Set up OCI config and secure it
           command: |
             mkdir -p ~/.oci
 
-            # write the static part of config without using a heredoc
+            # 1) Write the static profile snippet
             printf "%s\n" \
               "[DEFAULT]" \
               "user=${OCI_USER_OCID}" \
@@ -43,31 +43,43 @@ jobs:
               "key_file=/home/circleci/.oci/oci_api_key.pem" \
             > ~/.oci/config
 
-            # decode & write private key
+            # 2) Decode your Base64-encoded private key
             echo "${OCI_API_PRIVATE_KEY}" | base64 -d > ~/.oci/oci_api_key.pem
+
+            # 3) **Append the bare “OCI_API_KEY” label** to the PEM itself
+            #    so the CLI stops warning and recognizes it as “secure” :contentReference[oaicite:2]{index=2}
+            echo "OCI_API_KEY" >> ~/.oci/oci_api_key.pem
+
+            # 4) Lock down permissions
             chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
 
-            # extract the public key and append it
+            # 5) Extract and append your **public-key string** into the config
             PUB_KEY=$(openssl rsa -in ~/.oci/oci_api_key.pem -pubout 2>/dev/null \
               | sed '1d;$d' \
               | tr -d '\n')
             if [ -z "$PUB_KEY" ]; then
-              echo "ERROR: Failed to extract public key from OCI_API_PRIVATE_KEY" >&2
+              echo "ERROR: could not extract public key" >&2
               exit 1
             fi
             echo "OCI_API_KEY=\"${PUB_KEY}\"" >> ~/.oci/config
 
-            # debug: confirm it's in the file
-            grep OCI_API_KEY ~/.oci/config || (echo "OCI_API_KEY missing!" >&2; exit 1)
+            # 6) Sanity-check both the label in the PEM and the entry in the config
+            grep -q '^OCI_API_KEY$' ~/.oci/oci_api_key.pem \
+              && echo "✓ private key label OK" \
+              || (echo "✗ missing OCI_API_KEY label in PEM" >&2; exit 1)
+            grep -q '^OCI_API_KEY=' ~/.oci/config \
+              && echo "✓ config label OK" \
+              || (echo "✗ missing OCI_API_KEY entry in config" >&2; exit 1)
 
-            # fix permissions
+            # 7) Repair permissions per OCI CLI expectations
             oci setup repair-file-permissions --file ~/.oci/config
 
-            # perform uploads
+            # 8) Now perform your uploads
             node scripts/oci-upload.js
             oci os object bulk-upload \
               --bucket-name "${OCI_BUCKET_NAME}" \
               --src-path dist
+
 
 workflows:
   build_and_deploy_workflow:
