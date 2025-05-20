@@ -44,6 +44,7 @@ jobs:
               "tenancy=${OCI_TENANCY_OCID}" \
               "region=${OCI_REGION}" \
               "key_file=/home/circleci/.oci/oci_api_key.pem" \
+              "namespace=${OCI_NAMESPACE}"
             > ~/.oci/config
 
             # Decode private key and append bare label
