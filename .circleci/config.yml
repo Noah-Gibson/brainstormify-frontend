@@ -18,31 +18,24 @@ jobs:
       - run:
           name: Build React app
           command: npm run build
-      
+
       - run:
-          name: Install pip
+          name: Install python3-pip
           command: |
             sudo apt-get update -y
             sudo apt-get install -y python3-pip
 
       - run:
-          name: Install OCI CLI (latest & bug-fixed)
+          name: Install OCI CLI (v3.51.7+)
           command: |
-            # Install the OCI CLI via pip to pull in v3.51.7+ (contains the OCI_API_KEY parsing fix)
-            python3 -m pip install --user --upgrade oci-cli==3.51.7
+            pip3 install --user --upgrade oci-cli==3.51.7
             export PATH="$HOME/.local/bin:$PATH"
-            # Verify version is ≥ 3.51.7
             oci --version
 
       - run:
-          name: Set up, verify OCI config & upload assets
+          name: Set up OCI config and upload
           command: |
-            set -x
-
-            # 1) Show the fingerprint coming from CircleCI
-            echo "OCI_FINGERPRINT (env-var): $OCI_FINGERPRINT"
-
-            # 2) Write the minimal config
+            # Write minimal OCI config
             mkdir -p ~/.oci
             printf "%s\n" \
               "[DEFAULT]" \
@@ -53,46 +46,32 @@ jobs:
               "key_file=/home/circleci/.oci/oci_api_key.pem" \
             > ~/.oci/config
 
-            # 3) Dump & verify that fingerprint line made it in
-            echo "---- ~/.oci/config ----"
-            cat ~/.oci/config
-            echo "------------------------"
-            grep '^fingerprint=' ~/.oci/config \
-              || (echo "⚠️ fingerprint line missing!" >&2; exit 1)
-
-            # 4) Decode private key and append bare label
+            # Decode private key and append bare label
             echo "${OCI_API_PRIVATE_KEY}" | base64 -d > ~/.oci/oci_api_key.pem
-            echo "OCI_API_KEY" >> ~/.oci/oci_api_key.pem
+            echo OCI_API_KEY >> ~/.oci/oci_api_key.pem
             chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
 
-            # 5) Extract public key string and append to config
+            # Extract public key and append unquoted to config
             PUB_KEY=$(openssl rsa -in ~/.oci/oci_api_key.pem -pubout \
                       | sed '1d;$d' \
                       | tr -d '\n')
-            if [ -z "$PUB_KEY" ]; then
-              echo "ERROR: could not extract public key" >&2
-              exit 1
-            fi
-            echo "OCI_API_KEY=\"${PUB_KEY}\"" >> ~/.oci/config
+            [ -n "$PUB_KEY" ] || { echo "Failed to extract public key"; exit 1; }
+            echo OCI_API_KEY=${PUB_KEY} >> ~/.oci/config
 
-            # 6) Sanity-check both labels
-            grep -q '^OCI_API_KEY$' ~/.oci/oci_api_key.pem \
-              && echo "✓ private key label OK" \
-              || (echo "✗ missing OCI_API_KEY label in PEM" >&2; exit 1)
-            grep -q '^OCI_API_KEY=' ~/.oci/config \
-              && echo "✓ config label OK" \
-              || (echo "✗ missing OCI_API_KEY entry in config" >&2; exit 1)
-
-            # 7) Repair permissions for OCI CLI
+            # Repair permissions
             oci setup repair-file-permissions --file ~/.oci/config
 
-            # 8) Upload your built assets
-            node scripts/oci-upload.js
+            # Verify signing with a debug list call
+            oci os object list \
+              --bucket-name "$OCI_BUCKET_NAME" \
+              --namespace  "$OCI_NAMESPACE" \
+              --limit 1 \
+              --debug
+
+            # Bulk-upload built assets
             oci os object bulk-upload \
               --bucket-name "${OCI_BUCKET_NAME}" \
               --src-path dist
-
-
 
 workflows:
   build_and_deploy_workflow:
