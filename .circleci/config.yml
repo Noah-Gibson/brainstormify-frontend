@@ -69,10 +69,11 @@ jobs:
               --limit 1 \
               --debug
 
-            # Bulk-upload built assets
-            oci os object bulk-upload \
-              --bucket-name "${OCI_BUCKET_NAME}" \
-              --src-dir dist
+      - run:
+          name: Bulk upload from script to ensure correct content types
+          command: |
+            export PATH="$HOME/.local/bin:$PATH"
+            node scripts/oci-upload.js
 
 workflows:
   build_and_deploy_workflow:
