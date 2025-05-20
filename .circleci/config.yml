@@ -35,19 +35,15 @@ jobs:
             oci --version
 
       - run:
-          name: Verify fingerprint env-var is being used
+          name: Set up, verify OCI config & upload assets
           command: |
+            set -x
+
+            # 1) Show the fingerprint coming from CircleCI
             echo "OCI_FINGERPRINT (env-var): $OCI_FINGERPRINT"
-            echo "Config file contents:"
-            grep fingerprint ~/.oci/config || echo "fingerprint line missing!"
 
-
-      - run:
-          name: Set up OCI config and secure it
-          command: |
+            # 2) Write the minimal config
             mkdir -p ~/.oci
-
-            # 1) Write the static profile snippet
             printf "%s\n" \
               "[DEFAULT]" \
               "user=${OCI_USER_OCID}" \
@@ -57,27 +53,29 @@ jobs:
               "key_file=/home/circleci/.oci/oci_api_key.pem" \
             > ~/.oci/config
 
-            # 2) Decode your Base64-encoded private key
+            # 3) Dump & verify that fingerprint line made it in
+            echo "---- ~/.oci/config ----"
+            cat ~/.oci/config
+            echo "------------------------"
+            grep '^fingerprint=' ~/.oci/config \
+              || (echo "⚠️ fingerprint line missing!" >&2; exit 1)
+
+            # 4) Decode private key and append bare label
             echo "${OCI_API_PRIVATE_KEY}" | base64 -d > ~/.oci/oci_api_key.pem
-
-            # 3) **Append the bare “OCI_API_KEY” label** to the PEM itself
-            #    so the CLI stops warning and recognizes it as “secure” :contentReference[oaicite:2]{index=2}
             echo "OCI_API_KEY" >> ~/.oci/oci_api_key.pem
-
-            # 4) Lock down permissions
             chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
 
-            # 5) Extract and append your **public-key string** into the config
-            PUB_KEY=$(openssl rsa -in ~/.oci/oci_api_key.pem -pubout 2>/dev/null \
-              | sed '1d;$d' \
-              | tr -d '\n')
+            # 5) Extract public key string and append to config
+            PUB_KEY=$(openssl rsa -in ~/.oci/oci_api_key.pem -pubout \
+                      | sed '1d;$d' \
+                      | tr -d '\n')
             if [ -z "$PUB_KEY" ]; then
               echo "ERROR: could not extract public key" >&2
               exit 1
             fi
             echo "OCI_API_KEY=\"${PUB_KEY}\"" >> ~/.oci/config
 
-            # 6) Sanity-check both the label in the PEM and the entry in the config
+            # 6) Sanity-check both labels
             grep -q '^OCI_API_KEY$' ~/.oci/oci_api_key.pem \
               && echo "✓ private key label OK" \
               || (echo "✗ missing OCI_API_KEY label in PEM" >&2; exit 1)
@@ -85,14 +83,15 @@ jobs:
               && echo "✓ config label OK" \
               || (echo "✗ missing OCI_API_KEY entry in config" >&2; exit 1)
 
-            # 7) Repair permissions per OCI CLI expectations
+            # 7) Repair permissions for OCI CLI
             oci setup repair-file-permissions --file ~/.oci/config
 
-            # 8) Now perform your uploads
+            # 8) Upload your built assets
             node scripts/oci-upload.js
             oci os object bulk-upload \
               --bucket-name "${OCI_BUCKET_NAME}" \
               --src-path dist
+
 
 
 workflows:
