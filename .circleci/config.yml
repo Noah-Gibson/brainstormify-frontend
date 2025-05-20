@@ -27,38 +27,48 @@ jobs:
       - run:
           name: Set up OCI config and secure it
           command: |
+            # create config directory
             mkdir -p ~/.oci
 
-            # write a minimal config
-            printf "%s\n" \
-              "[DEFAULT]" \
-              "user=$OCI_USER_OCID" \
-              "fingerprint=$OCI_FINGERPRINT" \
-              "tenancy=$OCI_TENANCY_OCID" \
-              "region=$OCI_REGION" \
-              "key_file=/home/circleci/.oci/oci_api_key.pem" \
-            > ~/.oci/config
+            # write the static part of config
+            cat > ~/.oci/config <<-EOF
+            [DEFAULT]
+            user=${OCI_USER_OCID}
+            fingerprint=${OCI_FINGERPRINT}
+            tenancy=${OCI_TENANCY_OCID}
+            region=${OCI_REGION}
+            key_file=/home/circleci/.oci/oci_api_key.pem
+            EOF
 
             # decode and write the private key
-            echo "$OCI_API_PRIVATE_KEY" | base64 -d > ~/.oci/oci_api_key.pem
-
-            # extract & append the public key label
-            openssl rsa -in ~/.oci/oci_api_key.pem -pubout \
-              | sed '1d;$d' \
-              | tr -d '\n' \
-              | awk '{ print "OCI_API_KEY=\"" $0 "\"" }' \
-              >> ~/.oci/config
-
-            # lock down permissions
+            echo "${OCI_API_PRIVATE_KEY}" | base64 -d > ~/.oci/oci_api_key.pem
             chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
 
+            # extract public key (one-liner) and append to config
+            PUB_KEY=$(openssl rsa -in ~/.oci/oci_api_key.pem -pubout 2>/dev/null \
+              | sed '1d;$d' \
+              | tr -d '\n')
+            if [ -z "$PUB_KEY" ]; then
+              echo "ERROR: Failed to extract public key from OCI_API_PRIVATE_KEY" >&2
+              exit 1
+            fi
+            echo "OCI_API_KEY=\"${PUB_KEY}\"" >> ~/.oci/config
+
+            # debug: dump the final config so you can verify OCI_API_KEY is present
+            echo "----- ~/.oci/config -----"
+            sed -n '1,10p' ~/.oci/config
+            tail -n +11 ~/.oci/config | sed -n '1p'
+            echo "-------------------------"
+
+            # fix permissions
             oci setup repair-file-permissions --file ~/.oci/config
 
+            # now run your upload
             node scripts/oci-upload.js
-
             oci os object bulk-upload \
-              --bucket-name "$OCI_BUCKET_NAME" \
-              --src-path dist \
+              --bucket-name "${OCI_BUCKET_NAME}" \
+              --src-path dist
+
 
 workflows:
   build_and_deploy_workflow:
