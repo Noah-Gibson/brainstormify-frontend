@@ -72,7 +72,7 @@ jobs:
             # Bulk-upload built assets
             oci os object bulk-upload \
               --bucket-name "${OCI_BUCKET_NAME}" \
-              --src-path dist
+              --src-dir dist
 
 workflows:
   build_and_deploy_workflow:
