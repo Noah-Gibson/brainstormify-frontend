@@ -49,7 +49,7 @@ jobs:
 
             # Decode private key and append bare label
             echo "${OCI_API_PRIVATE_KEY}" | base64 -d > ~/.oci/oci_api_key.pem
-            echo OCI_API_KEY >> ~/.oci/oci_api_key.pem
+            #echo OCI_API_KEY >> ~/.oci/oci_api_key.pem
             chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
 
             # Extract public key and append unquoted to config
