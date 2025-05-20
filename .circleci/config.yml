@@ -35,11 +35,11 @@ jobs:
             oci --version
 
       - run:
-        name: Verify fingerprint env-var is being used
-        command: |
-          echo "OCI_FINGERPRINT (env-var): $OCI_FINGERPRINT"
-          echo "Config file contents:"
-          grep fingerprint ~/.oci/config || echo "fingerprint line missing!"
+          name: Verify fingerprint env-var is being used
+          command: |
+            echo "OCI_FINGERPRINT (env-var): $OCI_FINGERPRINT"
+            echo "Config file contents:"
+            grep fingerprint ~/.oci/config || echo "fingerprint line missing!"
 
 
       - run:
