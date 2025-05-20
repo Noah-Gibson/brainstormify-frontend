@@ -30,6 +30,7 @@ function walk(dir) {
           `--name ${rel}`,
           `--file ${full}`,
           `--content-type "${type}"`,
+          '--disable-parallel-uploads',
         ].join(' '),
         { stdio: 'inherit' }
       );
