@@ -18,6 +18,12 @@ jobs:
       - run:
           name: Build React app
           command: npm run build
+      
+      - run:
+          name: Install pip
+          command: |
+            sudo apt-get update -y
+            sudo apt-get install -y python3-pip
 
       - run:
           name: Install OCI CLI (latest & bug-fixed)
