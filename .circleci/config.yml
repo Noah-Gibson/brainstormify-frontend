@@ -70,6 +70,26 @@ jobs:
               --debug
 
       - run:
+          name: Delete all existing objects in bucket
+          command: |
+            export PATH="$HOME/.local/bin:$PATH"
+
+            OBJECTS=$(oci os object list \
+              --bucket-name "${OCI_BUCKET_NAME}" \
+              --namespace "${OCI_NAMESPACE}" \
+              --query "data[].name" \
+              --raw-output)
+
+            for obj in $OBJECTS; do
+              echo "Deleting: $obj"
+              oci os object delete \
+                --bucket-name "${OCI_BUCKET_NAME}" \
+                --namespace "${OCI_NAMESPACE}" \
+                --object-name "$obj" \
+                --force
+            done
+
+      - run:
           name: Bulk upload from script to ensure correct content types
           command: |
             export PATH="$HOME/.local/bin:$PATH"
