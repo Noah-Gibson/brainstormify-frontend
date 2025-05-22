@@ -41,7 +41,7 @@ function HomePage() {
 
     return (
         <div className="content">
-            <h1>Documents</h1>
+            <h1 style={{ paddingBottom: "1rem" }}>Documents</h1>
             <CreateDocumentButton/>
 
             {notFound ? (
